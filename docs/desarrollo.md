@@ -6,7 +6,7 @@
 
 ## Requisitos previos
 
-- **Linux** o **WSL 2** en Windows. Se verifico en `Ubuntu 22.04 LTS`, Otras distribuciones deberían funcionar si Docker Engine cuenta con instrucciones oficiales de instalación para ellas ([lista en la documentación de Docker](https://docs.docker.com/engine/install/)), pero no se probaron.
+- **Linux** o **WSL 2** en Windows. Se verifico en `Ubuntu 22.04 LTS`, otras distribuciones deberían funcionar si Docker Engine cuenta con instrucciones oficiales de instalación para ellas ([lista en la documentación de Docker](https://docs.docker.com/engine/install/)), pero no se probaron.
 - **Docker Engine**, instalado desde el [repositorio oficial de Docker](https://docs.docker.com/engine/install/ubuntu/).
 - Tu usuario tiene que poder usar Docker sin `sudo` (pertenecer al grupo `docker`).
 - Conexión a internet para el primer build y la primera ejecución.
@@ -31,7 +31,7 @@ docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) \
   -t chatbot-unla-dev -f Dockerfile.dev .
 ```
 
-- `--build-arg UID=... GID=...` crea dentro de la imagen un usuario con **tu mismo UID y GID**. Así, los archivos que genere el contenedor te pertenecen a vos.
+- `--build-arg UID=... GID=...` crea dentro de la imagen un usuario con **tu mismo UID y GID**. Así, los archivos que genere el contenedor te pertenecen a tu usuario.
 - `-t chatbot-unla-dev` le pone nombre a la imagen.
 - `-f Dockerfile.dev` indica qué Dockerfile usar.
 - `.` indica que el contexto de build es la carpeta actual, la raíz del repositorio.
@@ -96,7 +96,6 @@ ls -ln target
 
 ## Limitaciones actuales
 
-- **La imagen todavía no arranca sola.** La aplicación necesita MySQL. Si se ejecuta sin una base de datos disponible, Spring Boot inicia y después falla con `Communications link failure`. Es el comportamiento esperado hasta que se agregue Docker Compose.
 - **La imagen todavía no arranca sola.** La aplicación necesita MySQL al iniciar: Hibernate se conecta a la base para verificar y crear las tablas, y si no puede, Spring Boot aborta el arranque con `Communications link failure`. No es un defecto de la imagen sino un requisito de la aplicación. Además, `application.properties` apunta a `localhost:3306`, y dentro de un contenedor `localhost` es el propio contenedor, que no tiene base de datos. La solución definitiva es Docker Compose (PR siguiente), que levanta MySQL y conecta ambos servicios por nombre. Mientras tanto, en Linux se puede probar con un contenedor `mysql:8.0` aparte y `--network host`.
 - **La recarga automática depende de que el editor compile el código.** La imagen no incluye un proceso que recompile al guardar. Con el IDE abierto, su extensión de Java genera los `.class` en el `target/` compartido y Spring Boot DevTools reinicia la aplicación; con el editor cerrado, los cambios no se aplican. El script basado en `inotify-tools`, que ya está instalado en la imagen, lo resolverá en un PR posterior.
 - **La configuración todavía está fija en `application.properties`** (`localhost`, `root/root`, URL de Ollama). Se pasa a variables de entorno en un PR aparte. Ahí mismo hay que corregir el typo `allowPublicKeyRetrival` por `allowPublicKeyRetrieval`: mientras tanto, la conexión a MySQL 8 con un usuario sin SSL falla con `Public Key Retrieval is not allowed`.

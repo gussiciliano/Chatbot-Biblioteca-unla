@@ -21,7 +21,7 @@ Incluye carga manual de preguntas/respuestas, carga por archivo (CSV/Excel), y s
 
 La documentación para ejecutar el proyecto con Docker está en la carpeta `docs/`:
 
-* [Entorno de desarrollo](docs/desarollo.md)
+* [Entorno de desarrollo](docs/desarrollo.md)
 
 Los entornos con Docker todavía están en construcción. Mientras tanto, se puede seguir usando la ejecución local que se describe a continuación.
 
