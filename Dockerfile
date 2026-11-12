@@ -22,7 +22,7 @@ WORKDIR /app
 
 RUN useradd --system --create-home --shell /usr/sbin/nologin appuser
 
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build /app/target/Chatbot-Biblioteca-unla-0.0.1-SNAPSHOT.jar app.jar
 
 USER appuser
 
