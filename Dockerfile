@@ -20,7 +20,7 @@ FROM eclipse-temurin:17-jre-noble AS production
 
 WORKDIR /app
 
-RUN useradd --system --create-home --shell /usr/sbin/nologin appuser
+RUN useradd --system --shell /usr/sbin/nologin appuser
 
 COPY --from=build /app/target/Chatbot-Biblioteca-unla-0.0.1-SNAPSHOT.jar app.jar
 
