@@ -1,0 +1,16 @@
+
+.git
+.gitignore
+
+target/
+
+.env
+.env.*
+
+.vscode
+.idea
+.settings
+.classpath
+.project
+.factorypath
+*.iml

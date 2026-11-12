@@ -1,0 +1,13 @@
+FROM eclipse-temurin:17-jdk-noble
+
+ARG UID=1000
+ARG GID=1000
+
+RUN apt-get update && apt-get install -y --no-install-recommends inotify-tools && rm -rf /var/lib/apt/lists/*
+
+RUN (userdel -r ubuntu || true) && groupadd -g ${GID} devgroup && useradd -u ${UID} -g devgroup -m -s /bin/bash devuser && mkdir -p /app /home/devuser/.m2 && chown devuser:devgroup /app /home/devuser/.m2
+
+WORKDIR /app
+USER devuser
+
+CMD ["sh", "mvnw", "spring-boot:run"]
