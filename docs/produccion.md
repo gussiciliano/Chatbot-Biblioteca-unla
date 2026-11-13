@@ -82,7 +82,58 @@ Tiene que aparecer `Chatbot-Biblioteca-unla-0.0.1-SNAPSHOT.jar`.
 
 ---
 
+## 🧪 Probar la imagen con una base de datos temporal
+
+La aplicación necesita MySQL para arrancar. Si se ejecuta sola, con `docker run --rm chatbot-unla`, falla con `Communications link failure`: la configuración busca la base en `localhost:3306`, y **dentro de un contenedor `localhost` es el propio contenedor**, donde no hay ninguna base de datos.
+
+Para probarla, se levanta una MySQL temporal en una red de Docker y se le indica a la aplicación, por variables de entorno, que la busque por el nombre de su contenedor. Las contraseñas de los comandos son de ejemplo, sólo para esta prueba local.
+
+**1. Crear una red y levantar MySQL:**
+
+```bash
+docker network create prueba-chatbot
+
+docker run -d --rm --name prueba-mysql --network prueba-chatbot \
+  -e MYSQL_ROOT_PASSWORD=prueba-root \
+  -e MYSQL_DATABASE=chatbot \
+  -e MYSQL_USER=chatbot \
+  -e MYSQL_PASSWORD=prueba \
+  mysql:8.4
+```
+
+Esperar a que MySQL termine de inicializarse: en el log (`docker logs -f prueba-mysql`), el mensaje `ready for connections` aparece dos veces, y la que indica que está listo es la que dice `port: 3306`. Cortar el log con Ctrl+C; MySQL sigue corriendo.
+
+**2. Levantar la aplicación en la misma red:**
+
+```bash
+docker run --rm --name prueba-app --network prueba-chatbot -p 8080:8080 \
+  -e SPRING_DATASOURCE_URL="jdbc:mysql://prueba-mysql:3306/chatbot?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true" \
+  -e SPRING_DATASOURCE_USERNAME=chatbot \
+  -e SPRING_DATASOURCE_PASSWORD=prueba \
+  -e MAIL_USERNAME=prueba@example.com \
+  -e MAIL_PASSWORD=no-se-usa \
+  chatbot-unla
+```
+
+- `prueba-mysql`, en la URL, es el nombre del contenedor de MySQL: dentro de una red de Docker, los contenedores se encuentran por nombre.
+- Las variables `SPRING_DATASOURCE_*` reemplazan los valores de `application.properties` sin reconstruir la imagen.
+- `MAIL_USERNAME` es obligatoria para que la aplicación arranque. En esta prueba no se envían correos, así que alcanza con valores de ejemplo.
+- La URL va entre comillas porque contiene `&`, que la terminal interpretaría como otra instrucción.
+
+Cuando el log muestre `Started ChatbotApplication`, la aplicación está disponible en http://localhost:8080. El chat todavía no responde: ver "Limitaciones actuales", más abajo.
+
+**3. Limpiar.** Detener la aplicación con Ctrl+C y después:
+
+```bash
+docker stop prueba-mysql
+docker network rm prueba-chatbot
+```
+
+Los dos contenedores se borran solos al detenerse (`--rm`), y la base de datos se descarta con ellos.
+
+---
+
 ## ⚠️ Limitaciones actuales
 
-- **La imagen todavía no arranca sola.** La aplicación necesita MySQL. Si se ejecuta con `docker run --rm chatbot-unla`, Spring Boot inicia y después falla con `Communications link failure`, porque no hay ninguna base de datos disponible. Es el comportamiento esperado hasta que se agregue Docker Compose.
+- **El chat todavía no funciona dentro del contenedor.** La dirección de Ollama está escrita en el código Java como `http://localhost:11434`, así que dentro del contenedor la aplicación lo busca en sí misma y falla. A diferencia de la base de datos, no se puede cambiar con una variable de entorno: hay que parametrizarla en el código.
 - **La configuración todavía está dentro de la imagen.** `application.properties` se empaqueta en el `.jar` con los valores que tiene hoy. Hasta que la configuración se pase por variables de entorno, **no hay que publicar esta imagen en ningún registry**.
