@@ -1,0 +1,18 @@
+# Historial de git: la imagen no lo necesita y es lo más pesado del contexto
+.git
+
+# Compilación local: la imagen genera su propio target/ en la etapa de build
+target
+
+# Variables de entorno con credenciales: nunca deben entrar al contexto
+.env
+.env.*
+
+# Configuración de editores e IDEs
+.vscode
+.idea
+.settings
+.classpath
+.project
+.factorypath
+*.iml

@@ -17,6 +17,14 @@ Incluye carga manual de preguntas/respuestas, carga por archivo (CSV/Excel), y s
 
 ---
 
+## 🐳 Ejecución con Docker
+La documentación para ejecutar el proyecto con Docker está en la carpeta [`docs/`](docs/):
+- [Entorno de producción](docs/produccion.md)
+
+Los entornos con Docker todavía están en construcción. Mientras tanto, se puede seguir usando la ejecución local que se describe a continuación.
+
+---
+
 ## ⚙️ Requisitos previos
 1. **Java 17** o superior.  
 2. **Spring Tools Suite (STS) / Spring Tools 4** o IntelliJ IDEA con soporte para Spring Boot.  
