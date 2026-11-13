@@ -6,8 +6,9 @@
 
 ## ⚙️ Requisitos previos
 
-- **Linux** o **WSL 2** con Ubuntu en Windows.
-- **Docker Engine** y el plugin **Docker Compose**, instalados desde el [repositorio oficial de Docker](https://docs.docker.com/engine/install/ubuntu/). No se usa Docker Desktop.
+- **Linux**, o **WSL 2** en Windows con cualquier distribución que Docker Engine soporte oficialmente (por ejemplo Ubuntu, Debian o Fedora). Estos pasos se probaron en Ubuntu.
+  - Tiene que ser WSL **2**: Docker Engine necesita un kernel de Linux real, y WSL 1 no lo tiene. Para ver la versión, en PowerShell: `wsl -l -v` (columna `VERSION`).
+- **Docker Engine** y el plugin **Docker Compose**, instalados desde el [repositorio oficial de Docker](https://docs.docker.com/engine/install/) siguiendo las instrucciones de tu distribución. No se usa Docker Desktop.
 - Tu usuario tiene que poder usar Docker sin `sudo` (pertenecer al grupo `docker`).
 - Conexión a internet para el primer build.
 
