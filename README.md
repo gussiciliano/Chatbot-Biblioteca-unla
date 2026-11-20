@@ -36,6 +36,9 @@ Los entornos con Docker todavía están en construcción. Mientras tanto, se pue
      ollama pull qwen3:0.6b
      ```
 5. **Configuración de correo**: se debe generar una **contraseña de aplicación** desde tu proveedor (ej. Gmail, Outlook) para que la aplicación pueda enviar correos.
+6. **Variables de entorno**: la conexión a la base de datos y la cuenta de correo no están escritas en `application.properties`; la aplicación las lee de las variables `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `MAIL_USERNAME` y `MAIL_PASSWORD`, que son obligatorias. La lista y el formato están en [`.env.example`](.env.example).
+   - En STS se cargan en *Run → Run Configurations… → pestaña Environment*; en IntelliJ, en *Run → Edit Configurations… → Environment variables*.
+   - Para la base local que se crea en el paso siguiente, `DB_URL` es `jdbc:mysql://localhost:3306/Chatbot-Biblioteca-unla?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true`.
 
 ---
 

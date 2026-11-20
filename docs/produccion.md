@@ -50,6 +50,7 @@ El [`Dockerfile`](../Dockerfile) usa un build **multi-stage** con dos etapas:
 Características de la imagen final:
 
 - **No corre como root:** la aplicación se ejecuta con el usuario de sistema `appuser`, que no tiene shell de inicio de sesión.
+- **Sin credenciales:** `application.properties` sólo tiene referencias a variables de entorno; los valores se pasan al arrancar el contenedor (ver "Configuración", más abajo).
 - **Sin herramientas de desarrollo:** no incluye el JDK, Maven ni el código fuente.
 - **Tests salteados en el build:** `-DskipTests` compila los tests pero no los ejecuta, para que construir la imagen no dependa de una base de datos.
 - **Caché de dependencias:** primero se copian el wrapper y el `pom.xml` y se descargan las dependencias; recién después se copia `src/`. Así, un cambio de código no vuelve a descargarlas.
@@ -82,13 +83,57 @@ Tiene que aparecer `Chatbot-Biblioteca-unla-0.0.1-SNAPSHOT.jar`.
 
 ---
 
+## 🔐 Configuración
+
+La imagen no contiene credenciales. La configuración que cambia según dónde se ejecute la aplicación se pasa por variables de entorno al arrancar el contenedor:
+
+| Variable | Qué es |
+|---|---|
+| `DB_URL` | URL de conexión a MySQL. El formato está en [`.env.example`](../.env.example). |
+| `DB_USERNAME` | Usuario de MySQL. |
+| `DB_PASSWORD` | Contraseña de ese usuario. |
+| `MAIL_USERNAME` | Cuenta de correo desde la que la aplicación envía los mails. |
+| `MAIL_PASSWORD` | Contraseña de aplicación de esa cuenta (no la contraseña normal). |
+
+Las variables se escriben en un archivo `.env`, que se crea a partir de la plantilla:
+
+```bash
+cp .env.example .env
+```
+
+- El `.env` está en el `.gitignore` y en el `.dockerignore`: **nunca se sube al repositorio ni entra en la imagen**. Lo que se versiona es sólo la plantilla, `.env.example`, sin valores.
+- Formato `NOMBRE=valor`, una por línea, **sin espacios alrededor del `=` y sin comillas**: `docker run --env-file` rechaza los espacios en el nombre y toma las comillas como parte del valor.
+
+**Todas las variables son obligatorias y no tienen valor por defecto.** Si falta una, es preferible que la aplicación no arranque a que arranque conectada a una base equivocada. El error, eso sí, no dice "falta la variable": Spring deja el texto `${NOMBRE}` tal cual y lo usa como valor. Cómo reconocer cada caso:
+
+| Falta | Qué pasa |
+|---|---|
+| `DB_URL` | No arranca: `Driver com.mysql.cj.jdbc.Driver claims to not accept jdbcUrl, ${DB_URL}` |
+| `DB_USERNAME` | No arranca: `Access denied for user '${DB_USERNAME}'...` |
+| `DB_PASSWORD` | No arranca: `Access denied for user '<usuario>'... (using password: YES)`. **Es el mismo error que da una contraseña incorrecta**: antes de revisar la contraseña, confirmar que la variable esté en el `.env`. |
+| `MAIL_USERNAME` | No arranca: `Could not resolve placeholder 'MAIL_USERNAME'` |
+| `MAIL_PASSWORD` | Arranca, pero falla al enviar un correo. |
+
+---
+
 ## 🧪 Probar la imagen con una base de datos temporal
 
-La aplicación necesita MySQL para arrancar. Si se ejecuta sola, con `docker run --rm chatbot-unla`, falla con `Communications link failure`: la configuración busca la base en `localhost:3306`, y **dentro de un contenedor `localhost` es el propio contenedor**, donde no hay ninguna base de datos.
+La aplicación necesita MySQL para arrancar. Para probarla sin instalar nada, se levanta una MySQL temporal en una red de Docker y la aplicación se conecta a ella con un `.env` de prueba. Las contraseñas de esta sección son de ejemplo, sólo para esta prueba local.
 
-Para probarla, se levanta una MySQL temporal en una red de Docker y se le indica a la aplicación, por variables de entorno, que la busque por el nombre de su contenedor. Las contraseñas de los comandos son de ejemplo, sólo para esta prueba local.
+**1. Crear el `.env` de prueba.** Desde la raíz del repositorio, `cp .env.example .env`, y completarlo así:
 
-**1. Crear una red y levantar MySQL:**
+```
+DB_URL=jdbc:mysql://prueba-mysql:3306/chatbot?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+DB_USERNAME=chatbot
+DB_PASSWORD=prueba
+MAIL_USERNAME=prueba@example.com
+MAIL_PASSWORD=no-se-usa
+```
+
+- `prueba-mysql`, en la URL, es el nombre del contenedor de MySQL: dentro de una red de Docker, los contenedores se encuentran por nombre. No sirve `localhost`, porque **dentro de un contenedor `localhost` es el propio contenedor**, donde no hay ninguna base de datos.
+- En esta prueba no se envían correos, así que alcanza con valores de ejemplo para el mail.
+
+**2. Crear una red y levantar MySQL:**
 
 ```bash
 docker network create prueba-chatbot
@@ -103,37 +148,27 @@ docker run -d --rm --name prueba-mysql --network prueba-chatbot \
 
 Esperar a que MySQL termine de inicializarse: en el log (`docker logs -f prueba-mysql`), el mensaje `ready for connections` aparece dos veces, y la que indica que está listo es la que dice `port: 3306`. Cortar el log con Ctrl+C; MySQL sigue corriendo.
 
-**2. Levantar la aplicación en la misma red:**
+**3. Levantar la aplicación en la misma red:**
 
 ```bash
-docker run --rm --name prueba-app --network prueba-chatbot -p 8080:8080 \
-  -e SPRING_DATASOURCE_URL="jdbc:mysql://prueba-mysql:3306/chatbot?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true" \
-  -e SPRING_DATASOURCE_USERNAME=chatbot \
-  -e SPRING_DATASOURCE_PASSWORD=prueba \
-  -e MAIL_USERNAME=prueba@example.com \
-  -e MAIL_PASSWORD=no-se-usa \
-  chatbot-unla
+docker run --rm --name prueba-app --network prueba-chatbot -p 8080:8080 --env-file .env chatbot-unla
 ```
 
-- `prueba-mysql`, en la URL, es el nombre del contenedor de MySQL: dentro de una red de Docker, los contenedores se encuentran por nombre.
-- Las variables `SPRING_DATASOURCE_*` reemplazan los valores de `application.properties` sin reconstruir la imagen.
-- `MAIL_USERNAME` es obligatoria para que la aplicación arranque. En esta prueba no se envían correos, así que alcanza con valores de ejemplo.
-- La URL va entre comillas porque contiene `&`, que la terminal interpretaría como otra instrucción.
+`--env-file .env` carga en el contenedor todas las variables del archivo.
 
 Cuando el log muestre `Started ChatbotApplication`, la aplicación está disponible en http://localhost:8080. El chat todavía no responde: ver "Limitaciones actuales", más abajo.
 
-**3. Limpiar.** Detener la aplicación con Ctrl+C y después:
+**4. Limpiar.** Detener la aplicación con Ctrl+C y después:
 
 ```bash
 docker stop prueba-mysql
 docker network rm prueba-chatbot
 ```
 
-Los dos contenedores se borran solos al detenerse (`--rm`), y la base de datos se descarta con ellos.
+Los dos contenedores se borran solos al detenerse (`--rm`), y la base de datos se descarta con ellos. El `.env` de prueba puede quedar, porque git lo ignora; para usar la aplicación con una base real, hay que reemplazar sus valores.
 
 ---
 
 ## ⚠️ Limitaciones actuales
 
 - **El chat todavía no funciona dentro del contenedor.** La dirección de Ollama está escrita en el código Java como `http://localhost:11434`, así que dentro del contenedor la aplicación lo busca en sí misma y falla. A diferencia de la base de datos, no se puede cambiar con una variable de entorno: hay que parametrizarla en el código.
-- **La configuración todavía está dentro de la imagen.** `application.properties` se empaqueta en el `.jar` con los valores que tiene hoy. Hasta que la configuración se pase por variables de entorno, **no hay que publicar esta imagen en ningún registry**.
